@@ -1,0 +1,64 @@
+pipeline {
+    // Define the Docker image to be used as the agent for the entire pipeline
+    agent {
+        docker {
+            image 'python:3.9-slim-buster' // A lightweight Python image
+            args '-u 0:0' // Optional: Run as root inside the container if permissions are an issue with Jenkins user
+        }
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                // This step is often implicitly handled by Jenkins SCM, but good to be explicit for clarity
+                script {
+                    echo "Checking out code..."
+                    // git checkout is handled by Jenkins itself usually,
+                    // but if you have specific needs for the Docker agent to do it,
+                    // you'd add 'sh "git clone ..."' or similar, but typically
+                    // Jenkins mounts the workspace into the Docker container.
+                }
+            }
+        }
+        stage('Install Dependencies') {
+            steps {
+                sh 'pip install --no-cache-dir -r requirements.txt' // Assuming you have a requirements.txt
+            }
+        }
+        stage('Build') {
+            steps {
+                echo 'Running build script f1.py...'
+                sh 'python f1.py' // Use 'python' inside the container, not 'python3' as 'python' often points to 3.x in Python Docker images
+            }
+        }
+        stage('Test') {
+            steps {
+                echo 'Running test script f2.py...'
+                sh 'python f2.py'
+            }
+        }
+        stage('Deploy') {
+            steps {
+                echo 'Running deploy script f3.py...'
+                sh 'python f3.py'
+                // Add your actual deployment logic here, e.g.,
+                // sh 'aws s3 cp . s3://your-bucket --recursive'
+                // sh 'kubectl apply -f k8s/'
+            }
+        }
+    }
+
+    post {
+        always {
+            echo 'Pipeline finished.'
+            // Clean up workspace if necessary
+            // deleteDir()
+        }
+        success {
+            echo 'Pipeline completed successfully!'
+        }
+        failure {
+            echo 'Pipeline failed!'
+        }
+    }
+}
